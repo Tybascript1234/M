@@ -1585,6 +1585,12 @@ body.dark .player {
   }
 }
 @media(max-width:760px) {
+  .ayah-actions {
+    justify-content: space-evenly !important;
+  }
+  .ayah-actions button {
+    padding: 9px 22px !important;
+  }
   .ayah-context-actions {
     display: flex !important;
   }
