@@ -1585,10 +1585,10 @@ body.dark .player {
   }
 }
 @media(max-width:760px) {
-  .ayah-actions button span {
+  .ayah-actions button span, .ayah-context-actions button span {
     display: none !important;
   }
-  .ayah-actions button svg {
+  .ayah-actions button svg, .ayah-context-actions button svg {
     width: 20px;
     height: 20px;
   }
