@@ -1585,6 +1585,9 @@ body.dark .player {
   }
 }
 @media(max-width:760px) {
+  .ayah-context-actions {
+    display: flex !important;
+  }
   .ayah-actions button span, .ayah-context-actions button span {
     display: none !important;
   }
