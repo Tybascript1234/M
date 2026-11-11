@@ -258,10 +258,8 @@ let activeCustomSelect = null;
 let customSelectLayer = null;
 let customSelectDrag = null;
 function isTouchUiMode() { return matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 760px)').matches; }
-function pushTouchUiHistory(kind) {
-  if (!isTouchUiMode() || history.state?.uiLayer === kind) return;
-  history.pushState({ ...(history.state || {}), uiLayer: kind }, '', location.href);
-}
+// لا نضيف أي إدخال في تاريخ المتصفح للقوائم والنوافذ؛ أسهم المتصفح مخصّصة للتنقّل بين الصفحات فقط
+function pushTouchUiHistory() {}
 function ensureCustomSelectLayer() {
   if (customSelectLayer) return customSelectLayer;
   customSelectLayer = document.createElement('div');
@@ -430,12 +428,15 @@ function positionCustomSelect() {
   if (touch) return;
   const rect = activeCustomSelect.trigger.getBoundingClientRect();
   const margin = 12; const width = Math.min(Math.max(rect.width, 250), innerWidth - margin * 2);
-  const availableBelow = innerHeight - rect.bottom - margin;
-  const viewportMaxHeight = Math.max(120, innerHeight - margin * 2);
-  const maxHeight = Math.min(420, viewportMaxHeight, Math.max(160, availableBelow > 220 ? availableBelow : rect.top - margin));
+  const gap = 7;
+  const spaceBelow = innerHeight - rect.bottom - margin - gap;
+  const spaceAbove = rect.top - margin - gap;
+  const placeAbove = spaceBelow < 220 && spaceAbove > spaceBelow;
+  const maxHeight = Math.max(120, Math.min(420, placeAbove ? spaceAbove : spaceBelow));
   const left = Math.min(Math.max(margin, rect.left), innerWidth - width - margin);
-  const top = availableBelow > 220 ? rect.bottom + 7 : Math.max(margin, rect.top - maxHeight - 7);
-  Object.assign(panel.style, { width: `${width}px`, maxHeight: `${maxHeight}px`, left: `${left}px`, top: `${top}px` });
+  // عند الظهور للأعلى نثبّت القائمة من الأسفل لتلتصق بالمشغّل بدل ترك فراغ بحسب الارتفاع الأقصى
+  const vertical = placeAbove ? { bottom: `${innerHeight - rect.top + gap}px` } : { top: `${rect.bottom + gap}px` };
+  Object.assign(panel.style, { width: `${width}px`, maxHeight: `${maxHeight}px`, left: `${left}px`, ...vertical });
 }
 function openCustomSelect(select) {
   const instance = customSelectInstances.get(select); if (!instance || select.disabled) return;
@@ -690,18 +691,17 @@ async function restoreReader({ useShareParams = false } = {}) {
   return route('quran', { fromHistory: true });
 }
 
-function closeTopTransientUiFromBack() {
-  if (activeCustomSelect) { closeCustomSelect({ restoreFocus: false }); return true; }
-  if (!document.getElementById('ayahActionsModal')?.hidden) { closeAyahActions(); return true; }
-  if (!document.getElementById('aboutModal')?.hidden) { closeAboutModal(); return true; }
-  if (!document.getElementById('locationModal')?.hidden) { closeLocationModal(); return true; }
-  if (!document.getElementById('fontMenu')?.hidden) { closeFontMenu(); return true; }
-  if (document.getElementById('appSidebar')?.classList.contains('open')) { setMenuOpen(false); return true; }
-  return false;
+function closeAllTransientUi() {
+  if (activeCustomSelect) closeCustomSelect({ restoreFocus: false });
+  closeFontMenu();
+  if (!document.getElementById('ayahActionsModal')?.hidden) closeAyahActions();
+  if (!document.getElementById('aboutModal')?.hidden) closeAboutModal();
+  if (!document.getElementById('locationModal')?.hidden) closeLocationModal();
+  setMenuOpen(false);
 }
 window.addEventListener('popstate', () => {
-  // في الهاتف تكون أولوية زر الرجوع لإغلاق أعلى قائمة/نافذة مفتوحة. المشغّل العام مستثنى عمدًا.
-  if (isTouchUiMode() && closeTopTransientUiFromBack()) return;
+  // أسهم المتصفح (رجوع/تقدّم) تنتقل بين الصفحات فقط ولا تُستخدم لإغلاق القوائم؛ أي قائمة مفتوحة تُغلق تلقائيًا عند الانتقال
+  closeAllTransientUi();
   route((location.hash || '#home').slice(1), { fromHistory: true });
 });
 
@@ -734,6 +734,16 @@ document.addEventListener('keydown', event => {
   if (!document.getElementById('aboutModal')?.hidden) closeAboutModal();
   if (!document.getElementById('locationModal')?.hidden) closeLocationModal();
 });
+// إغلاق القوائم المنبثقة عند التمرير بعجلة الفأرة أو بالسحب خارج القائمة نفسها
+function closeFloatingMenusOnScroll(event) {
+  const target = event.target;
+  if (target instanceof Element && target.closest('.custom-select-panel, .font-menu, .sidebar')) return;
+  closeFontMenu();
+  if (activeCustomSelect && customSelectLayer?.classList.contains('desktop')) closeCustomSelect({ restoreFocus: false });
+  if (sidebarEl.classList.contains('open')) setMenuOpen(false);
+}
+window.addEventListener('wheel', closeFloatingMenusOnScroll, { passive: true });
+document.addEventListener('scroll', closeFloatingMenusOnScroll, { capture: true, passive: true });
 const desktopQuery = matchMedia('(min-width: 761px)');
 const closeMenuOnDesktop = event => { if (event.matches) setMenuOpen(false); };
 desktopQuery.addEventListener?.('change', closeMenuOnDesktop);
