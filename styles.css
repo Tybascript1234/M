@@ -2011,7 +2011,9 @@ body.dark .player {
   gap: 10px;
   margin-top: 18px;
   position: sticky;
+  z-index: 2;
   bottom: 0;
+  background-color: var(--surface);
   box-shadow: 0 0 5px 13px var(--surface), 0px 30px 0px var(--surface);
 }
 .ayah-context-actions button {
